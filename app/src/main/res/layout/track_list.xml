@@ -1,0 +1,44 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_marginLeft="16dp"
+    android:layout_marginRight="16dp"
+    android:baselineAligned="false"
+    android:divider="?android:attr/dividerHorizontal"
+    android:orientation="vertical"
+    android:showDividers="middle"
+    tools:context=".TrackPropertiesActivity">
+
+    <!--
+    This layout is a two-pane layout for the Tracks
+    master/detail flow.
+    -->
+
+    <FrameLayout
+        android:id="@+id/track_detail_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3">
+
+        <org.osmdroid.views.MapView android:id="@+id/map"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+        </org.osmdroid.views.MapView>
+    </FrameLayout>
+
+    <android.support.v7.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/track_list"
+        android:name="org.surrel.gpx_explorer.TrackListFragment"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_weight="4"
+        app:layoutManager="LinearLayoutManager"
+        tools:context=".TrackPropertiesActivity"
+        tools:listitem="@layout/track_list_content" />
+
+</LinearLayout>
