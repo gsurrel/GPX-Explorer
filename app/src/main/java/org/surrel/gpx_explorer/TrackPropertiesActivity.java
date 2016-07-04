@@ -89,6 +89,7 @@ public class TrackPropertiesActivity extends AppCompatActivity {
         // Map
         map = (MapView) findViewById(R.id.map);
         map.setTileSource(TileSourceFactory.MAPNIK);
+        map.setTilesScaledToDpi(true);
         map.setBuiltInZoomControls(true);
         map.setMultiTouchControls(true);
         map.getController().setZoom(OUT_ZOOM);
