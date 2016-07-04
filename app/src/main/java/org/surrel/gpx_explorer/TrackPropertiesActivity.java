@@ -1,12 +1,16 @@
 package org.surrel.gpx_explorer;
 
 import android.Manifest;
+import android.app.ActionBar;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
+import android.provider.OpenableColumns;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -21,7 +25,6 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.osmdroid.api.IGeoPoint;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.BoundingBoxE6;
 import org.osmdroid.util.GeoPoint;
@@ -30,6 +33,7 @@ import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.infowindow.BasicInfoWindow;
 import org.surrel.gpx_explorer.dummy.DummyContent;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -88,6 +92,7 @@ public class TrackPropertiesActivity extends AppCompatActivity {
         map.setBuiltInZoomControls(true);
         map.setMultiTouchControls(true);
         map.getController().setZoom(OUT_ZOOM);
+        map.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
 
         // START PERMISSION CHECK
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -130,35 +135,64 @@ public class TrackPropertiesActivity extends AppCompatActivity {
             // Instead, a URI to that document will be contained in the return intent
             // provided to this method as a parameter.
             // Pull that URI using resultData.getData().
-            Uri uri = null;
+            Uri uri;
             if (resultData != null) {
                 uri = resultData.getData();
-                String sUri = uri.toString();
-                Log.i(TAG, "Uri: " + sUri);
-                //gpxReader.loadFile(uri);
-                List<GeoPoint> pts = gpxReader.getPts();
+                String title = "";
 
-                Polyline line = new Polyline(getApplicationContext());
-                line.setTitle(sUri.substring(sUri.lastIndexOf("/")));
-                line.setSubDescription(Polyline.class.getCanonicalName());
-                line.setWidth(20f);
-                line.setPoints(pts);
-                line.setGeodesic(true);
-                line.setInfoWindow(new BasicInfoWindow(R.layout.bonuspack_bubble, map));
-                line.setOnClickListener(new Polyline.OnClickListener() {
-                    @Override
-                    public boolean onClick(Polyline polyline, MapView mapView, GeoPoint eventPos) {
-                        Toast.makeText(getApplicationContext(), "Hello world!", Toast.LENGTH_LONG).show();
-                        return false;
+                // The query, since it only applies to a single document, will only return
+                // one row. There's no need to filter, sort, or select fields, since we want
+                // all fields for one document.
+                try (Cursor cursor = getContentResolver()
+                        .query(uri, null, null, null, null, null)) {
+                    // moveToFirst() returns false if the cursor has 0 rows.  Very handy for
+                    // "if there's anything to look at, look at it" conditionals.
+                    if (cursor != null && cursor.moveToFirst()) {
+                        String[] colNames = cursor.getColumnNames();
+                        for (String name : colNames) {
+                            Log.i(TAG, name + ": " + cursor.getString(cursor.getColumnIndex(name)));
+                            if (name.equals(OpenableColumns.DISPLAY_NAME)) {
+                                title = cursor.getString(cursor.getColumnIndex(name));
+                                ActionBar bar = getActionBar();
+                                if (bar != null) {
+                                    bar.setTitle(title);
+                                }
+                            }
+                        }
                     }
-                });
-                map.getOverlayManager().add(line);
+                }
 
-                // Pan and zoom to fit (these calls needed in this order!)
-                final BoundingBoxE6 bb = BoundingBoxE6.fromGeoPoints((ArrayList<? extends GeoPoint>) pts);
-                map.getController().setCenter(bb.getCenter());
-                map.getController().zoomToSpan(bb.getLatitudeSpanE6(), bb.getLongitudeSpanE6());
-                map.getController().setCenter(bb.getCenter());
+                try {
+                    ParcelFileDescriptor parcelFileDescriptor =
+                            getContentResolver().openFileDescriptor(uri, "r");
+                    gpxReader.loadFile(parcelFileDescriptor);
+                    List<GeoPoint> pts = gpxReader.getPts();
+
+                    Polyline line = new Polyline(getApplicationContext());
+                    line.setTitle(title);
+                    line.setSubDescription(Polyline.class.getCanonicalName());
+                    line.setWidth(20f);
+                    line.setPoints(pts);
+                    line.setGeodesic(true);
+                    line.setInfoWindow(new BasicInfoWindow(R.layout.bonuspack_bubble, map));
+                    final String finalTitle = title;
+                    line.setOnClickListener(new Polyline.OnClickListener() {
+                        @Override
+                        public boolean onClick(Polyline polyline, MapView mapView, GeoPoint eventPos) {
+                            Toast.makeText(getApplicationContext(), finalTitle, Toast.LENGTH_LONG).show();
+                            return false;
+                        }
+                    });
+                    map.getOverlayManager().add(line);
+
+                    // Pan and zoom to fit (these calls needed in this order!)
+                    final BoundingBoxE6 bb = BoundingBoxE6.fromGeoPoints((ArrayList<? extends GeoPoint>) pts);
+                    map.getController().setCenter(bb.getCenter());
+                    map.getController().zoomToSpan(bb.getLatitudeSpanE6(), bb.getLongitudeSpanE6());
+                    map.getController().setCenter(bb.getCenter());
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
